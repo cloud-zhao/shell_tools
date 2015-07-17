@@ -15,9 +15,9 @@ function sendmail(){
 	local body=$2
 	local to_mail=$3
 	[ $# -eq 4 ] && local cc_mail=$4
-	local ser='smtp.163.com'
-	local user='vv_past@163.com'
-	local pass='123.com.cn'
+	local ser='SELF SERVER'
+	local user='SELF USER'
+	local pass='SELF PASSWORD'
 
 	local bin="/root/cloudzhao/install/sendEmail"
 	

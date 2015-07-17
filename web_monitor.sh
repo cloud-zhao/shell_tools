@@ -4,8 +4,8 @@
 conf='webser.conf'
 log='web_monitor.log'
 date=`date "+%Y-%m-%d %H-%M-%S"`
-to_mail='chengchao@tvmining.com'
-cc_mail='zhaozhen@tvmining.com'
+to_mail='xxxx@xxx.xx'
+cc_mail='xxx@xxx.xx'
 
 if [ ! -f $conf ]
 then
