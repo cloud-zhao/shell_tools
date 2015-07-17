@@ -1,9 +1,11 @@
 #!/bin/bash
-. tools.sh
+real_path=$(cd "$(dirname $0)";pwd)
 
-conf='webser.conf'
-log='web_monitor.log'
-date=`date "+%Y-%m-%d %H-%M-%S"`
+. $real_path/tools.sh
+
+conf="$real_path/webser.conf"
+log="$real_path/web_monitor.log"
+date=`date "+%Y-%m-%d %H:%M:%S"`
 to_mail='xxxx@xxx.xx'
 cc_mail='xxx@xxx.xx'
 
@@ -23,6 +25,10 @@ function splitstr(){
 
 cat $conf | while read url
 do
+	if [ -z "$url" ]
+	then
+		continue
+	fi
 	host=`echo $url | awk -F '/' '{print $3}'`
 	res=`curl -o /dev/null -s -w %{http_code}:%{time_namelookup}:%{time_connect}:%{time_starttransfer}:%{time_total}"\n" $url`
 	res=(`splitstr $res ":"`)
