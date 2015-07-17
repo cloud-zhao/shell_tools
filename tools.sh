@@ -21,7 +21,7 @@ function sendmail(){
 
 	local bin="/root/cloudzhao/install/sendEmail"
 	
-	$bin/sendEmail -t $to_mail -cc $cc_mail -u $subject -m $body -s $ser -xu $user -xp $pass
+	$bin/sendEmail -f $user -t $to_mail -cc $cc_mail -u $subject -m $body -s $ser -xu $user -xp $pass
 
 }
 
