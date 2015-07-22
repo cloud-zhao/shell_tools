@@ -25,7 +25,7 @@ do
 
 	ids=(`ls $mysql_data_dir | grep 'mysql-bin' | grep -v 'index' | awk -F '.' '{print $2}'`)
 
-	file="amysql-bin."`min ${ids[@]}`
+	file="mysql-bin."`min ${ids[@]}`
 	rm -rf ${mysql_data_dir%/}/$file
 	
 done
