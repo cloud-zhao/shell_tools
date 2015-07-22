@@ -70,8 +70,9 @@ xml=$(cat $myxml | tr -d '\n' | awk -F '' '{count=0;
 xml=(`shrink $xml`)
 
 length=${#xml[@]}
-for ((pi=0;pi<$length;pi++))
+for ((pi=1;pi<$length;pi++))
 do
+	let pi=$pi-1
 	if [ `regex "${xml[$pi]}" "/^<[^\/]*$/"` -eq 1 ]
 	then
 		estr=${xml[$pi]}
@@ -91,8 +92,6 @@ do
 					if [ `regex "${xml[$pk]}" "/^<\/.*$/"` -eq 1 ]
 					then
 						let pg=$pk-$pt
-						#echo "unset ${xml[$pg]}"
-						#echo "${xml[$pk]}====${xml[$pg]}===$pk--->$pg"
 						unset xml[$pk]
 						unset xml[$pg]
 						let pt=$pt+2
