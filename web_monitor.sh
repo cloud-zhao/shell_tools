@@ -30,7 +30,7 @@ do
 		continue
 	fi
 	host=`echo $url | awk -F '/' '{print $3}'`
-	res=`curl -o /dev/null -s -w %{http_code}:%{time_namelookup}:%{time_connect}:%{time_starttransfer}:%{time_total}"\n" $url`
+	res=`curl --connect-timeout 40 -o /dev/null -s -w %{http_code}:%{time_namelookup}:%{time_connect}:%{time_starttransfer}:%{time_total}"\n" $url`
 	res=(`splitstr $res ":"`)
 	http_code=${res[0]}
 	time_name=${res[1]}
