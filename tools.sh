@@ -1,8 +1,52 @@
+#!/bin/bash
 
 function array(){
 	local array_name=$1
 	local array='echo ${'$array_name'[@]}'
 	eval $array
+}
+
+function array_del(){
+	[ $# -ne  1 ] && return
+	local elem=$1
+	local array_name=`echo $elem | awk -F '[' '{print $1}'`
+
+	eval "unset $elem"
+	local array=(`eval 'echo ${'$array_name'[@]}'`)
+	local j=0
+	local i
+	local new_array
+	for i in ${array[@]}
+	do
+		new_array[$j]=$i
+		let j=$j+1
+	done
+
+	eval "$array_name=(`echo ${new_array[@]}`)"
+}
+
+function array_split(){
+	[ $# -lt 2 ] && return
+	local split=$1
+	local str=$2
+
+	local array=(`echo $str | awk -F "$split" '{for(i=1;i<=NF;i++){print $i}}'`)
+	echo ${array[@]}
+}
+
+function array_join(){
+	[ $# -lt 3 ] && return
+	local join=$1 ; shift
+	local str=$1 ; shift
+	local array=($@)
+	local i
+
+	for i in ${array[@]}
+	do
+		str="${str}${join}${i}"
+	done
+
+	echo $str
 }
 
 function sendmail(){
