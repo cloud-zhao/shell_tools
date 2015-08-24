@@ -1,8 +1,5 @@
 #!/bin/bash
 
-url='cvm.api.qcloud.com/v2/index.php'
-para_array=('Nonce' $RANDOM 'Timestamp' `date +%s` 'Region' 'sh')
-
 function urlencode()
 {
     local encoded_str=`echo "$*" | awk 'BEGIN {
@@ -104,44 +101,74 @@ function signstr(){
 
 }
 
-if [ $# -lt 3 ]
-then
-	echo "para error"
-	exit
-fi
+function qcloud_api(){
+	[ $# -lt 5 ] && ( echo "para error" ; exit )
 
-id=$1 ; shift
-key=$1 ; shift
-action=$1 ; shift
-private_para=($@)
+	local url=$1 ; shift
+	local id=$1 ; shift
+	local key=$1 ; shift
+	local zone=$1 ; shift
+	local action=$1 ; shift
+	local private_para=($(echo $@))
 
-let private_count=${#private_para[@]}%2
+	let local private_count=${#private_para[@]}%2
 
-if [ ${#private_para[@]} -eq 1 ]
-then
-	echo "para error"
-	exit
-fi
+	if [ $private_count -eq 1 ]
+	then
+		echo "para error"
+		exit
+	fi
 
-para_array=(${para_array[@]} "Action" $action "SecretId" $id ${private_para[@]})
+	local para_array=('Nonce' $RANDOM 'Timestamp' `date +%s` 'Region' "$zone")
+	para_array=(${para_array[@]} "Action" "$action" "SecretId" "$id" ${private_para[@]})
 
+	local sigstr=`signstr $url "para_array" $key`
+	para_array=(${para_array[@]} "Signature" $sigstr)
 
-sigstr=`signstr $url "para_array" $key`
-para_array=(${para_array[@]} "Signature" $sigstr)
+	local i=1
+	while [ $i -lt ${#para_array[@]} ]
+	do
+		para_array[$i]=`urlencode ${para_array[$i]}`
+		let i=$i+2
+	done
 
-i=1
-while [ $i -lt ${#para_array[@]} ]
-do
-	para_array[$i]=`urlencode ${para_array[$i]}`
-	let i=$i+2
-done
+	para_array=(`para_sort ${para_array[@]}`)
+	local parastr=`para_join ${para_array[@]}`
+	
+	local req="https://$url?$parastr"
+	echo $req
 
-para_array=(`para_sort ${para_array[@]}`)
-parastr=`para_join ${para_array[@]}`
+	curl -s $req -o json.txt
 
-req="https://$url?$parastr"
-echo $req
+	echo ""
+}
 
-curl -s $req -o json.txt
+function parse_host(){
+	local file="./json.txt"
 
-echo ""
+	local all_json=$(awk -F ',' '{for(i=1;i<=NF;i++){if($i~/instanceName/){printf $i"->"};if($i~/Ip/){printf $i"->"};if($i~/instanceId/){printf $i"\n"}}}' $file)
+	local all_jsons=()
+
+	for i in ${all_json[@]}
+	do
+		all_jsons=(${all_jsons[@]} $i)
+	done
+
+	all_jsons[0]=$(echo ${all_jsons[0]} | sed 's/instanceSet"://')
+	local hostinfo=""
+	local instance_name=""
+	local lan_ip=""
+	local wan_ip=""
+	local instance_id=""
+	local i=0
+
+	for ((i=0;i<${#all_jsons[@]};i++))
+	do
+		hostinfo=$(echo ${all_jsons[$i]} | sed -r 's/"|\{|\}|\[|\]//g')
+		instance_name=$(echo $hostinfo | awk -F '->' '{print $1}' | awk -F ':' '{print $2}')
+		lan_ip=$(echo $hostinfo | awk -F '->' '{print $2}' | awk -F ':' '{print $2}')
+		wan_ip=$(echo $hostinfo | awk -F '->' '{print $3}' | awk -F ':' '{print $2}')
+		instance_id=$(echo $hostinfo | awk -F '->' '{print $4}' | awk -F ':' '{print $2}')
+		echo "$instance_name $lan_ip $wan_ip $instance_id"
+	done
+}
