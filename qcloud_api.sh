@@ -142,6 +142,6 @@ parastr=`para_join ${para_array[@]}`
 req="https://$url?$parastr"
 echo $req
 
-curl $req -o json.txt
+curl -s $req -o json.txt
 
 echo ""
