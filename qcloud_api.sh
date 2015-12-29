@@ -172,3 +172,28 @@ function parse_host(){
 		echo "$instance_name $lan_ip $wan_ip $instance_id"
 	done
 }
+
+#####Instances interface###########################
+# Use this interface to set the global variable   #
+# Example:                                        #
+#     URL ="cvm.api.qcloud.com"                   #
+#     ID  ="self id"                              #
+#     KEY ="self key"                             #
+#     ZONE="sh"                                   #
+###################################################
+
+function startinstances(){
+	[ $# -eq 0 ] && ( echo "para error" ; exit )
+	local instanceids=($(echo $@))
+	local instanceid=""
+	local para_list=()
+	local num=1
+	
+	for instanceid in ${instanceids[@]}
+	do
+		para_list=(${para_list[@]} "instanceIds.${num}" $instanceid)
+		let num=$num+1
+	done
+
+	qcloud_api $URL $ID $KEY $ZONE "StartInstances" ${para_list[@]}
+}
