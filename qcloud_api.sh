@@ -1,4 +1,7 @@
 #!/bin/bash
+# Before you can use the tool, 
+# you need to install following software.
+# curl  openssl  gawk
 
 if [ "$mode_qcloud_api" ];then
 	return
