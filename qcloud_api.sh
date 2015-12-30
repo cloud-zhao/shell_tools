@@ -1,7 +1,11 @@
 #!/bin/bash
 
-function urlencode()
-{
+if [ "$mode_qcloud_api" ];then
+	return
+fi
+export mode_qcloud_api=1
+
+function urlencode(){
     local encoded_str=`echo "$*" | awk 'BEGIN {
         split ("1 2 3 4 5 6 7 8 9 A B C D E F", hextab, " ")
         hextab [0] = 0
@@ -101,13 +105,32 @@ function signstr(){
 
 }
 
-function qcloud_api(){
-	[ $# -lt 5 ] && ( echo "para error" ; exit )
+function _check_variable(){
+	if [ -z "$URL" ] || [ -z "$ID" ] || [ -z "$KEY" ] || [ -z "$ZONE" ] || [ -z "$OUTFILE" ]
+	then
+		echo '
+		#####Instances interface###########################
+		# Use this interface to set the global variable   #
+		# Example:                                        #
+		#     URL ="cvm.api.qcloud.com"                   #
+		#     ID  ="self id"                              #
+		#     KEY ="self key"                             #
+		#     ZONE="sh"                                   #
+		#     OUTFILE="./json.txt"                        #
+		###################################################
+		'
+		exit
+	fi
+}
 
-	local url=$1 ; shift
-	local id=$1 ; shift
-	local key=$1 ; shift
-	local zone=$1 ; shift
+function qcloud_api(){
+	_check_variable
+	[ $# -lt 1 ] && ( echo "parameter error" ; exit )
+
+	local url=$URL
+	local id=$ID
+	local key=$KEY
+	local zone=$ZONE
 	local action=$1 ; shift
 	local private_para=($(echo $@))
 
@@ -115,7 +138,7 @@ function qcloud_api(){
 
 	if [ $private_count -eq 1 ]
 	then
-		echo "para error"
+		echo "parameter error"
 		exit
 	fi
 
@@ -138,7 +161,7 @@ function qcloud_api(){
 	local req="https://$url?$parastr"
 	echo $req
 
-	curl -s $req -o json.txt
+	curl -s $req -o $OUTFILE
 
 	echo ""
 }
@@ -173,18 +196,10 @@ function parse_host(){
 	done
 }
 
-#####Instances interface###########################
-# Use this interface to set the global variable   #
-# Example:                                        #
-#     URL ="cvm.api.qcloud.com"                   #
-#     ID  ="self id"                              #
-#     KEY ="self key"                             #
-#     ZONE="sh"                                   #
-###################################################
 
 #function instancesd start/stop/restart instance
 function instancesd(){
-	[ $# -eq 0 ] && ( echo "para error" ; exit )
+	[ $# -eq 0 ] && ( echo "parameter error" ; exit )
 	local flag=$1 ; shift
 	local instanceids=($(echo $@))
 	local instanceid=""
@@ -204,16 +219,16 @@ function instancesd(){
 		*)	   echo "Invalid option" && exit ;;
 	esac
 
-	qcloud_api $URL $ID $KEY $ZONE $flag ${para_list[@]}
+	qcloud_api $flag ${para_list[@]}
 }
 
 #Ex: instance_rename $instanceid $instance_name
 function instance_rename(){
-	[ $# -ne 2 ] && ( echo "para error" ; exit )
+	[ $# -ne 2 ] && ( echo "parameter error" ; exit )
 	local instanceid=$1
 	local instance_name=$2
 
-	qcloud_api $URL $ID $KEY $ZONE "ModifyInstanceAttributes" "instanceId" $instanceid "instanceName" $instance_name
+	qcloud_api "ModifyInstanceAttributes" "instanceId" $instanceid "instanceName" $instance_name
 }
 
 #Ex: instances_rename --same $instance_name $instance_id1 $instance_id2 $instance_id3 ......
@@ -253,13 +268,13 @@ function instances_rename(){
 
 #Ex: instance_modify_project $instance_projectid ${instanceids[@]}
 function instance_modify_project(){
-	[ $# -lt 2 ] && ( echo "para error" ; exit )
+	[ $# -lt 2 ] && ( echo "parameter error" ; exit )
 	local instance_projectid=$1 ; shift
 	local instanceids=($(echo $@))
 	local instanceid=""
 
 	for instanceid in ${instanceids[@]}
 	do
-		qcloud_api $URL $ID $KEY $ZONE "ModifyInstanceProject" "instanceId" $instanceid "projectId" $instance_projectid
+		qcloud_api "ModifyInstanceProject" "instanceId" $instanceid "projectId" $instance_projectid
 	done
 }
