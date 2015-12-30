@@ -207,6 +207,7 @@ function instancesd(){
 	qcloud_api $URL $ID $KEY $ZONE $flag ${para_list[@]}
 }
 
+#Ex: instance_rename $instanceid $instance_name
 function instance_rename(){
 	[ $# -ne 2 ] && ( echo "para error" ; exit )
 	local instanceid=$1
@@ -215,6 +216,8 @@ function instance_rename(){
 	qcloud_api $URL $ID $KEY $ZONE "ModifyInstanceAttributes" "instanceId" $instanceid "instanceName" $instance_name
 }
 
+#Ex: instances_rename --same $instance_name $instance_id1 $instance_id2 $instance_id3 ......
+#    instances_rename $name1 $id1 $name2 $id2 $name3 $id3 ........
 function instances_rename(){
 	[ $# -eq 0 ] && ( echo "Para error" ; exit )
 	local flag=$1 ; shift
@@ -246,4 +249,17 @@ function instances_rename(){
 			instance_rename ${instances_info[$i]} $instance_name
 		done
 	fi
+}
+
+#Ex: instance_modify_project $instance_projectid ${instanceids[@]}
+function instance_modify_project(){
+	[ $# -lt 2 ] && ( echo "para error" ; exit )
+	local instance_projectid=$1 ; shift
+	local instanceids=($(echo $@))
+	local instanceid=""
+
+	for instanceid in ${instanceids[@]}
+	do
+		qcloud_api $URL $ID $KEY $ZONE "ModifyInstanceProject" "instanceId" $instanceid "projectId" $instance_projectid
+	done
 }
