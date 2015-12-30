@@ -182,8 +182,10 @@ function parse_host(){
 #     ZONE="sh"                                   #
 ###################################################
 
-function startinstances(){
+#function instancesd start/stop/restart instance
+function instancesd(){
 	[ $# -eq 0 ] && ( echo "para error" ; exit )
+	local flag=$1 ; shift
 	local instanceids=($(echo $@))
 	local instanceid=""
 	local para_list=()
@@ -195,5 +197,53 @@ function startinstances(){
 		let num=$num+1
 	done
 
-	qcloud_api $URL $ID $KEY $ZONE "StartInstances" ${para_list[@]}
+	case $flag in
+		"start")   flag="StartInstances" ;;
+		"stop")    flag="StopInstances"  ;;
+		"restart") flag="RestartInstances" ;;
+		*)	   echo "Invalid option" && exit ;;
+	esac
+
+	qcloud_api $URL $ID $KEY $ZONE $flag ${para_list[@]}
+}
+
+function instance_rename(){
+	[ $# -ne 2 ] && ( echo "para error" ; exit )
+	local instanceid=$1
+	local instance_name=$2
+
+	qcloud_api $URL $ID $KEY $ZONE "ModifyInstanceAttributes" "instanceId" $instanceid "instanceName" $instance_name
+}
+
+function instances_rename(){
+	[ $# -eq 0 ] && ( echo "Para error" ; exit )
+	local flag=$1 ; shift
+	local instances_info=($(echo $@))
+	local i=1
+	local instance_name=""
+	local cp=0
+
+	if [ $flag == "--same" ];
+	then
+		instance_name=${instances_info[0]}
+		unset instances_info[0]
+		for((i=1;i<=${#instances_info[@]};i++))
+		do
+			instance_rename ${instances_info[$i]} $instance_name
+		done
+	else
+		instances_info=($flag ${instances_info[@]})
+		let cp=${#instances_info[@]}%2
+		if [ $cp -eq 1 ];then
+			echo "Parameter must be an even number"
+			exit
+		fi
+
+		for((i=0;i<${#instances_info[@]};i++))
+		do
+			instance_name=${instances_info[$i]}
+			let i=$i+1
+			instance_rename ${instances_info[$i]} $instance_name
+		done
+	fi
 }
