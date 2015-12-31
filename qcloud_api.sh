@@ -166,7 +166,12 @@ function qcloud_api(){
 
 	curl -s $req -o $OUTFILE
 
-	echo ""
+	local res=`awk -F ',|:' '{print $2}' json.txt | sed 's/"//' $OUTFILE`
+	if [ "$res" == "0" ];then
+		echo "Request successful."
+	else
+		echo "Request failed."
+	fi
 }
 
 function parse_host(){
