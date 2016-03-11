@@ -166,7 +166,16 @@ function qcloud_api(){
 
 	curl -s $req -o $OUTFILE
 
-	local res=`awk -F ',|:' '{print $2}' json.txt | sed 's/"//' $OUTFILE`
+	if [ $? -ne 0 ];then
+		echo "Curl command exec failed!"
+		return 1;
+	fi
+}
+
+function _res_check(){
+	local file="$OUTFILE"
+
+	local res=`awk -F ',' '{for(i=1;i<=NF;i++){if($i~/"code":.*/){split($i,code,":");print code[2];break}}}' $file`
 	if [ "$res" == "0" ];then
 		echo "Request successful."
 	else
@@ -175,7 +184,7 @@ function qcloud_api(){
 }
 
 function parse_host(){
-	local file="./json.txt"
+	local file="$OUTFILE"
 
 	local all_json=$(awk -F ',' '{for(i=1;i<=NF;i++){if($i~/instanceName/){printf $i"->"};if($i~/Ip/){printf $i"->"};if($i~/instanceId/){printf $i"\n"}}}' $file)
 	local all_jsons=()
@@ -228,6 +237,7 @@ function instancesd(){
 	esac
 
 	qcloud_api $flag ${para_list[@]}
+	_res_check
 }
 
 #Ex: instance_rename $instanceid $instance_name
@@ -237,6 +247,7 @@ function instance_rename(){
 	local instance_name=$2
 
 	qcloud_api "ModifyInstanceAttributes" "instanceId" $instanceid "instanceName" $instance_name
+	_res_check
 }
 
 #Ex: instances_rename --same $instance_name $instance_id1 $instance_id2 $instance_id3 ......
