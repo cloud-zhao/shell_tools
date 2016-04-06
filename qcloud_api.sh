@@ -128,7 +128,7 @@ function _check_variable(){
 
 function qcloud_api(){
 	_check_variable
-	[ $# -lt 1 ] && ( echo "parameter error" ; exit )
+	[ $# -lt 1 ] && { echo "parameter error" ; exit }
 
 	local url=$URL
 	local id=$ID
