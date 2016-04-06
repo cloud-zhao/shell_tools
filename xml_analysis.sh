@@ -27,17 +27,24 @@ function array_create(){
 	local myxml='.xml_file.xml'
 	[ $# -ne 1 ] && return
 
-	cat $xml_file | sed '/^$/d' >$myxml
 
-	xml_head='<?xml version=.*encoding=.*?>'
+	cat $xml_file | sed 's/</\n</g' >$myxml
 
-	sed -i "/$xml_head/d" $myxml
-	sed -i '/.*\/>/d' $myxml
+	sed -i 's/>/>\n/g' $myxml
+	sed -i 's/<?xml version=[^>]*encoding=[^>]*?>//g' $myxml
+	sed -i 's/<[^>]*\/>//g' $myxml
 	sed -i 's/\s*//g' $myxml
+	sed -i '/^$/d' $myxml
 
-	local xml=$(cat $myxml | tr -d '\n' | awk -F '' '{count=0;
+	local xml=($(cat $myxml | tr -d '\n' | awk -F '' '{count=0;
 		for(i=1;i<=NF;i++){
 			if($i=="<"){
+				p=i+1;
+				g=i-1;
+				if($p=="/" && $g==">"){
+					strall[count]="NULL";
+					count++;
+				}
 				str=$i;i++;
 				for(;i<=NF;i++){
 					str=str""$i;
@@ -56,11 +63,14 @@ function array_create(){
 					}
 					value_str=value_str""$i;
 				}
+				if(value_str==""){
+					value_str="NULL";
+				}
 				strall[count]=value_str;
 				count++;
 			}
 		}
-	}END{for(pi=0;pi<length(strall);pi++){print strall[pi];}}')
+	}END{for(pi=0;pi<length(strall);pi++){print strall[pi];}}'))
 
 	rm -rf $myxml
 	echo ${xml[@]}
@@ -100,7 +110,9 @@ function like_tree(){
 						then
 							let local pg=$pk-$pt
 							unset xml[$pk]
-							unset xml[$pg]
+							if [ $pg -ge 0 ];then
+								unset xml[$pg]
+							fi
 							let pt=$pt+2
 						else
 							break;
@@ -157,3 +169,5 @@ function xml_find(){
 function xml_end(){
 	rm -rf $tree_file
 }
+
+
