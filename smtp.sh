@@ -29,7 +29,7 @@ function read_socket(){
 
 	while read -u $socket -t 1 reply
 	do
-		printf "REPLY: $reply\n"
+		echo -ne "$reply\n"
 	done
 }
 
@@ -96,40 +96,133 @@ function mime_encode(){
 	}'
 }
 
+function debug(){
+	local str=$1
+	if [ ${SMTP_DEBUG:-0} -ne 0 ];then
+		echo -e "DEBUG\t$str"
+	fi
+}
 
-socket="25"
-host="smtp.exmail.qq.com"
-port="25"
+function check_result(){
+	local res=$1
+	local flag1=$(echo $res | grep 250 | wc -l)
+	local flag2=$(echo $res | grep 235 | wc -l)
+	local flag3=$(echo $res | grep 334 | wc -l)
 
-connect $socket $host $port
+	if [ ${flag1} -ne 0 ];then
+		echo "ok"
+	elif [ ${flag2} -ne 0 ];then
+		echo "ok"
+	elif [ ${flag3} -ne 0 ];then
+		echo "ok"
+	else
+		echo "fail"
+	fi
+}
 
-if [ $(socket_is_ok $sokcet) == "fail" ];then
-	echo "Connect $host:$port failed!!!"
-	exit
-fi
+function check_auth(){
+	local res=$1
 
-read_socket $socket
-write_socket $socket "EHLO `hostname -s`\r\n"
-read_socket $socket
-write_socket $socket "auth login\r\n"
-read_socket $socket
-write_socket $socket "$user\r\n"
-read_socket $socket
-write_socket $socket "$pass\r\n"
-read_socket $socket
-write_socket $socket "data\r\n"
-read_socket $socket
-write_socket $socket "To:$to\r\n"
-write_socket $socket "From:$from\r\n"
-write_socket $socket "Subject:$subject\r\n"
-write_socket $socket "mail body\r\n"
-write_socket $socket "$body\r\n"
-write_socket $socket ".\r\n"
-read_socket $socket
-write_socket $socket "quit\r\n"
-read_socket $socket
+	if [ $(check_result "$res") == "fail" ];then
+		echo "fail"
+		return 0
+	fi
+	
+	if [ $(echo $res | grep -i $2 | wc -l) -ne 0 ];then
+		echo "ok"
+	else
+		echo "fail"
+	fi
+}
+
+function _send(){
+	local socket=$1
+	local data=$2
+
+	write_socket $socket "$data\r\n"
+	local res=$(read_socket $socket)
+
+	if [ $(check_result "$res") == "ok" ];then
+		echo $res
+		debug $res
+	else
+		echo $res
+		exit
+	fi
+
+}
+
+function send_mail(){
+	local user=$1
+	local pass=$2
+	local to=$3
+	local subject=$4
+	local body=$5
+	local socket="25"
+	local host=${6:-"smtp.exmail.qq.com"}
+	local port=${7:-"25"}
+	local tos=($(echo $to | awk -F ',' '{for(i=1;i<=NF;i++){print $i}}'))
+
+	debug "host $host"
+	debug "port $port"
+	debug "user $user"
+	debug "pass $pass"
+	debug "to $to"
+	debug "subject $subject"
+	debug "body $body"
+
+	#exit
+
+	connect $socket $host $port
+	if [ $(socket_is_ok $sokcet) == "fail" ];then
+		echo "Connect $host:$port failed!!!"
+		exit
+	fi
+
+	local plain="AUTH ALAIN "$(mime_encode "\0$user\0$pass")"\r\n"
+
+	read_socket $socket
+	write_socket $socket "EHLO `hostname -s`\r\n"
+	ehlo_res=$(read_socket $socket)
+	if [ $(check_auth "$ehlo_res" "login") == "ok" ];then
+		local user_code=$(mime_encode $user)
+		local pass_code=$(mime_encode $pass)
+
+		debug "user_code $user_code"
+		debug "pass_code $pass_code"
+		debug "$ehlo_res"
+
+		write_socket $socket "AUTH LOGIN\r\n"
+		read_socket $socket
+		write_socket $socket "$user_code\r\n"
+		read_socket $socket
+		write_socket $socket "$pass_code\r\n"
+		read_socket $socket
+		write_socket $socket "mail from:<$user>\r\n"
+		read_socket $socket
+		for ((i=0;i<${#tos[@]};i++))
+		do
+			write_socket $socket "rcpt to:<${tos[$i]}>\r\n"
+			read_socket $socket
+		done
+		write_socket $socket "data\r\n"
+		read_socket $socket
+		write_socket $socket "From:$user\r\n"
+		write_socket $socket "To:$to\r\n"
+		write_socket $socket "Subject:$subject\r\n"
+		write_socket $socket "mail body\r\n\r\n\r\n"
+		write_socket $socket "$body\r\n\r\n\r\n"
+		write_socket $socket ".\r\n"
+		read_socket $socket
+		write_socket $socket "quit\r\n"
+		read_socket $socket
+	else
+		echo $ehlo_res
+	fi
 
 
-close $socket
+	close $socket
+
+}
 
 
