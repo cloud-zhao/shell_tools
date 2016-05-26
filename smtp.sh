@@ -1,4 +1,21 @@
 #!/bin/bash
+#This is a bash smtplib
+#Use example:
+#self script
+#  . smtp.sh
+#  SMTP_DEBUG=1 || 0 (debug/no)
+#  user="user";pass="pass";to="to1,to2,to3";subject="subject";body="body"
+#  
+#  send_mail "$user" "$pass" "$to" "$subject" "$body"
+#
+#Custom implementation:
+#      See function send_mail
+
+if [ "$BASH_SMTPLIB" ];then
+	return
+fi
+export BASH_SMTPLIB=1
+
 
 function connect(){
 	local host=$2
@@ -40,7 +57,7 @@ function write_socket(){
 	printf "$data" >&$socket
 }
 
-function mime_encode(){
+function mime_base64_encode(){
 	local str=$1
 
 	echo -e "$str" | awk -F '' '
@@ -143,7 +160,7 @@ function _send(){
 	local res=$(read_socket $socket)
 
 	if [ $(check_result "$res") == "ok" ];then
-		echo $res
+		#echo $res
 		debug $res
 	else
 		echo $res
@@ -179,14 +196,14 @@ function send_mail(){
 		exit
 	fi
 
-	local plain="AUTH ALAIN "$(mime_encode "\0$user\0$pass")"\r\n"
+	local plain="AUTH ALAIN "$(mime_base64_encode "\0$user\0$pass")"\r\n"
 
 	read_socket $socket
 	write_socket $socket "EHLO `hostname -s`\r\n"
 	ehlo_res=$(read_socket $socket)
 	if [ $(check_auth "$ehlo_res" "login") == "ok" ];then
-		local user_code=$(mime_encode $user)
-		local pass_code=$(mime_encode $pass)
+		local user_code=$(mime_base64_encode $user)
+		local pass_code=$(mime_base64_encode $pass)
 
 		debug "user_code $user_code"
 		debug "pass_code $pass_code"
