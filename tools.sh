@@ -63,7 +63,7 @@ function sendmail(){
 	local user='SELF USER'
 	local pass='SELF PASSWORD'
 
-	local bin="/root/cloudzhao/install/sendEmail"
+	local bin="/root/install/sendEmail"
 	
 	$bin/sendEmail -f $user -t $to_mail -cc $cc_mail -u $subject -m $body -s $ser -xu $user -xp $pass
 
@@ -96,4 +96,23 @@ function urlencode()
         print encoded
     }' 2>/dev/null`
     echo $encoded_str
+}
+
+function include(){
+	local lib=$1
+
+	if test ${lib:0:1} == "/"
+	then
+		. $lib
+	else
+		local path=($(echo $PATH | awk -F ':' '{for(i=1;i<=NF;i++){print $i}}'))
+		local i
+		for i in ${path[@]}
+		do
+			if test -f "$i/$lib"
+			then
+				. "$i/$lib"
+			fi
+		done
+	fi
 }
