@@ -128,7 +128,7 @@ function _check_variable(){
 
 function qcloud_api(){
 	_check_variable
-	[ $# -lt 1 ] && { echo "parameter error" ; exit }
+	[ $# -lt 1 ] && { echo "parameter error" ; return; }
 
 	local url=$URL
 	local id=$ID
@@ -142,7 +142,7 @@ function qcloud_api(){
 	if [ $private_count -eq 1 ]
 	then
 		echo "parameter error"
-		exit
+		return
 	fi
 
 	local para_array=('Nonce' $RANDOM 'Timestamp' `date +%s` 'Region' "$zone")
@@ -216,7 +216,7 @@ function parse_host(){
 
 #function instancesd start/stop/restart instance
 function instancesd(){
-	[ $# -eq 0 ] && ( echo "parameter error" ; exit )
+	[ $# -eq 0 ] && { echo "parameter error" ; return; }
 	local flag=$1 ; shift
 	local instanceids=($(echo $@))
 	local instanceid=""
@@ -233,7 +233,7 @@ function instancesd(){
 		"start")   flag="StartInstances" ;;
 		"stop")    flag="StopInstances"  ;;
 		"restart") flag="RestartInstances" ;;
-		*)	   echo "Invalid option" && exit ;;
+		*)	   echo "Invalid option" && return ;;
 	esac
 
 	qcloud_api $flag ${para_list[@]}
@@ -242,7 +242,7 @@ function instancesd(){
 
 #Ex: instance_rename $instanceid $instance_name
 function instance_rename(){
-	[ $# -ne 2 ] && ( echo "parameter error" ; exit )
+	[ $# -ne 2 ] && { echo "parameter error" ; return; }
 	local instanceid=$1
 	local instance_name=$2
 
@@ -253,7 +253,7 @@ function instance_rename(){
 #Ex: instances_rename --same $instance_name $instance_id1 $instance_id2 $instance_id3 ......
 #    instances_rename $name1 $id1 $name2 $id2 $name3 $id3 ........
 function instances_rename(){
-	[ $# -eq 0 ] && ( echo "Para error" ; exit )
+	[ $# -eq 0 ] && { echo "Para error" ; return; }
 	local flag=$1 ; shift
 	local instances_info=($(echo $@))
 	local i=1
@@ -273,7 +273,7 @@ function instances_rename(){
 		let cp=${#instances_info[@]}%2
 		if [ $cp -eq 1 ];then
 			echo "Parameter must be an even number"
-			exit
+			return
 		fi
 
 		for((i=0;i<${#instances_info[@]};i++))
@@ -287,7 +287,7 @@ function instances_rename(){
 
 #Ex: instance_modify_project $instance_projectid ${instanceids[@]}
 function instance_modify_project(){
-	[ $# -lt 2 ] && ( echo "parameter error" ; exit )
+	[ $# -lt 2 ] && { echo "parameter error" ; return; }
 	local instance_projectid=$1 ; shift
 	local instanceids=($(echo $@))
 	local instanceid=""
