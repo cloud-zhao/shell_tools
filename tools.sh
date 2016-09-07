@@ -117,6 +117,23 @@ function include(){
 	fi
 }
 
-function DEBUG(){
-	[ $DEBUG -eq 1 ] && echo "[DEBUG] $(date +%Y-%m-%d_%H:%M:%S) $(caller 0 | awk '{print $1}') $@"
+
+function time_date(){
+	/bin/date "+%Y-%m-%d %H:%M:%S"
+}
+
+function timestamp(){
+	/bin/date "+%s"
+}
+
+function LOG(){
+	local log_level=$1
+	shift
+	local log_str=("INFO" "WARN" "ERROR" "DEBUG")
+	case ${log_str[$log_level]} in
+		"DEBUG")
+			test $DEBUG -eq 1 && echo -e "[${log_str[$log_level]}] $(caller 0 | awk '{print $1}') $(time_date) $@" >&2;;
+		*)
+			echo -e "[${log_str[$log_level]}] $(caller 0 | awk '{print $1}') $(time_date) $@" >&2;;
+	esac
 }
