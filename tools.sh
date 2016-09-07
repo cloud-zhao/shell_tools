@@ -116,3 +116,7 @@ function include(){
 		done
 	fi
 }
+
+function DEBUG(){
+	[ $DEBUG -eq 1 ] && echo "[DEBUG] $(date +%Y-%m-%d_%H:%M:%S) $(caller 0 | awk '{print $1}') $@"
+}
