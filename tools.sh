@@ -129,11 +129,12 @@ function timestamp(){
 function LOG(){
 	local log_level=$1
 	shift
+	local time_date=$(date "+%Y-%m-%d %H:%M:%S")
 	local log_str=("INFO" "WARN" "ERROR" "DEBUG")
 	case ${log_str[$log_level]} in
 		"DEBUG")
-			test $DEBUG -eq 1 && echo -e "[${log_str[$log_level]}] $(caller 0 | awk '{print $1}') $(time_date) $@" >&2;;
+			test $DEBUG -eq 1 && echo -e "[${log_str[$log_level]}] $(caller 0 | awk '{print $1}') $time_date $@" >&2;;
 		*)
-			echo -e "[${log_str[$log_level]}] $(caller 0 | awk '{print $1}') $(time_date) $@" >&2;;
+			echo -e "[${log_str[$log_level]}] $(caller 0 | awk '{print $1}') $time_date $@" >&2;;
 	esac
 }
