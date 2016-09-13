@@ -131,6 +131,9 @@ function LOG(){
 	shift
 	local time_date=$(date "+%Y-%m-%d %H:%M:%S")
 	local log_str=("INFO" "WARN" "ERROR" "DEBUG")
+	if [ -z $DEBUG ];then
+		DEBUG=0
+	fi
 	case ${log_str[$log_level]} in
 		"DEBUG")
 			test $DEBUG -eq 1 && echo -e "[${log_str[$log_level]}] $(caller 0 | awk '{print $1}') $time_date $@" >&2;;
