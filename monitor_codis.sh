@@ -1,4 +1,5 @@
 #!/bin/bash
+. /etc/profile
 
 date_time=$(date "+%Y-%m-%d %H:%M:%S")
 
@@ -35,7 +36,7 @@ function zookeeper_check(){
 	
 	if [ -z $pid ];then
 		cd /opt/zookeeper
-		/opt/zookeeper/bin/zkServer.sh start
+		/opt/zookeeper/bin/zkServer.sh start >&2
 		send_mail "Codis Zookeeper Stop" "$date_time codis $ser zookeeper process stop"
 	else
 		echo "zookeeper ok" >&2
