@@ -1,4 +1,8 @@
 #!/bin/bash
+#Support kafka version 0.8.2.1
+#export KAFKA_HOME=xxx
+#Configure file Format:
+#	group_id|topic_name|partition|min_nrom,max_nrom|mail1,mail2|zookeeper_ser
 
 . /etc/profile
 
@@ -33,13 +37,13 @@ BASE=$(cd "$(dirname $0)";pwd)
 
 LOG 3 $BASE
 
-RATE=${1:-3}
+RATE=${1:-1}
 
 
 function send_mail(){
 	local sub=$1
 	local body=$2
-	local email=($(echo ${4:-"zhen.zhao@meelive.cn,lize.qian@meelive.cn"} | awk -F ',' '{for(i=1;i<=NF;i++){print $i}}'))
+	local email=($(echo ${3:-"zhen.zhao@meelive.cn,lize.qian@meelive.cn"} | awk -F ',' '{for(i=1;i<=NF;i++){print $i}}'))
 	local body_file=".send_mail_body_file_$(date +%s%N)_.out"
 
 	echo -e "$body" >$body_file
@@ -55,14 +59,31 @@ function get_size(){
 	local inof=""
 	local res=()
 
-	LOG 0 "Get $topic size."
+	if [ -z $KAFKA_HOME ];then
+		KAFKA_HOME='/opt/kafka'
+	fi
+	if [ -f $KAFKA_HOME/bin/kafka-consumer-offset-checker.sh ];then	
+		LOG 0 "Get $topic size."
+	else
+		LOG 2 "Not found $KAFKA_HOME/bin/kafka-consumer-offset-checker.sh"
+		exit
+	fi
 
-	/opt/kafka/bin/kafka-consumer-offset-checker.sh --zookeeper $ser --topic $topic --group $group >$out 2>&1
-	while read info
-	do
-		test $(echo $info | grep "$topic" | wc -l) -ne 1 && continue
-		res=(${res[@]} $(echo $info | awk '{printf $1"_"$2"_"$3" "$5}'))
-	done < $out
+
+	$KAFKA_HOME/bin/kafka-consumer-offset-checker.sh --zookeeper $ser --topic $topic --group $group >$out 2>&1
+
+	if [ $(cat $out | grep "KeeperException" | wc -l) -eq 1 ];then
+		LOG 3 "Res zookeeper error $(cat $out)"
+		LOG 2 "Res zookeeper error $(cat $out)"
+		echo ${res[@]}
+		return
+	fi
+	if [ $(cat $out | grep "$topic" | wc -l) -eq 0 ];then
+		LOG 2 "Res zookeeper error $(cat $out)"
+		echo ${res[@]}
+		return
+	fi
+	res=($(cat $out | grep "$topic" | awk '{aa[$2]+=$5}END{for(i in aa){print i" "aa[i]}}'))
 
 	rm -rf $out
 	[ $? -eq 0 ] && LOG 3 "RM: $out ok"
@@ -94,20 +115,21 @@ function check(){
 	local topic=$2
 	local flag=$3
 	local contacts=$4
-	[ $# -ne 4 ] && return
+	local kfk_ser=$5
+	[ $# -lt 5 ] && return
 	local rate=$RATE
 	local file="$BASE/.${group}_${topic}_${rate}.txt"
-	declare -A topic_hash
+	local topic_hash=()
 	local o_topic=()
-	local o_t_info=""
-	declare -A ops
 	local ops_p=0
+	local max=$(echo $flag | awk -F ',' '{print $2}')
+	local min=$(echo $flag | awk -F ',' '{print $1}')
 
 	LOG 0 "Check start. (Group:$group Topic:$topic)"
 
-	local res=($(get_size "" "$topic" "$group"))
+	local res=($(get_size "$kfk_ser" "$topic" "$group"))
 	
-	if [ ${#res[@]} -eq 0 ];then
+	if [ ${#res[@]} -ne 2 ];then
 		LOG 2 "Get $group $topic size failed."
 		return
 	else
@@ -116,47 +138,34 @@ function check(){
 
 	LOG 3 "Check_Res: ${res[@]}"
 	
-	for ((i=0;i<${#res[@]};i++))
-	do
-		topic_hash["${res[$i]}"]=${res[$i+1]}
-		let i=$i+1
-	done
-
-	if [ ${#topic_hash[@]} -eq 0 ];then
-		LOG 2 "Map topic hash failed."
-		return
-	else
-		LOG 0 "Map topic hash successful."
-	fi
+	topic_hash=(${res[0]} ${res[1]})
 
 	if [ -f $file ];then
 		LOG 0 "Check old file."
 		o_topic=($(cat $file))
-		echo -n "" >$file
-		for ((i=0;i<${#o_topic[@]};i++))
-		do
-			ops_p=$(echo "(${topic_hash[${o_topic[$i]}]}-${o_topic[$i+1]})/($rate*60)" | bc)
-			if [ $ops_p -lt $flag ];then
-				ops[${o_topic[$i]}]=$ops_p
-			fi
-			LOG 3 "OPS:${o_topic[$i]} ${topic_hash[${o_topic[$i]}]} $ops_p"
-			echo "${o_topic[$i]} ${topic_hash[${o_topic[$i]}]}" >>$file
-			let i=$i+1
-		done
+		if [ ${#o_topic[@]} -ne 2 ];then
+			LOG 2 "Get old topic file failed."
+			o_topic=($topic 0)
+		else
+			LOG 3 "Get old topic file successful. ${o_topic[@]}"
+		fi
+		ops_p=$(echo "${topic_hash[1]}-${o_topic[1]}" | bc)
+		LOG 3 "OPS:${topic_hash[0]} $ops_p"
+		echo "${topic_hash[0]} ${topic_hash[1]}" >$file
 	else
 		LOG 0 "Create old file"
-		for i in ${!topic_hash[@]}
-		do
-			echo "$i ${topic_hash[$i]}" >>$file
-			LOG 3 "TOPIC_HASH: $i ${topic_hash[$i]}"
-		done
+		echo "${topic_hash[0]} ${topic_hash[1]}" >$file
+		LOG 3 "TOPIC_HASH: ${topic_hash[@]}"
+		ops_p=1
 	fi
 
-	if [ ${#ops[@]} -ne 0 ]
+	LOG 3 "Check OPS: $ops_p"
+
+	if [ $ops_p -lt $min ] || [ $ops_p -gt $max ]
 	then
 		LOG 0 "Send mail."
-		LOG 3 "OPS: ${!ops[@]} ${ops[@]}"
-		send_mail "Kafka OPS Warning" $(join "${!ops[@]}" "${ops[@]}") "$contacts"
+		LOG 3 "Contacts: $contacts"
+		send_mail "Kafka OPS Warning" "$topic $(time_date)" "$contacts"
 	fi
 
 	LOG 0 "Check stop."
@@ -173,8 +182,8 @@ function read_conf(){
 		test $(echo $info | grep '|' | wc -l) -ne 1 && continue
 		
 		LOG 3 "Info: $info"
-		config_tmp=($(echo $info | awk -F '|' '{printf $1"\t"$2"\t"$3"\t"$4}'))
-		if [ ${#config_tmp[@]} -eq 4 ];then
+		config_tmp=($(echo $info | awk -F '|' '{printf $1"\t"$2"\t"$3"\t"$4"\t"$5}'))
+		if [ ${#config_tmp[@]} -eq 5 ];then
 			config=(${config[@]} ${config_tmp[@]})
 		else
 			LOG 1 "Configure $info fromat error."
@@ -201,12 +210,12 @@ function main(){
 	for ((i=0;i<${#conf[@]};i++))
 	do
 		LOG 3 "Check: ${conf[$i]} ${conf[$i+1]} ${conf[$i+2]} ${conf[$i+3]}"
-		check ${conf[$i]} ${conf[$i+1]} ${conf[$i+2]} "${conf[$i+3]}"
-		let i=$i+3
+		check ${conf[$i]} ${conf[$i+1]} ${conf[$i+2]} "${conf[$i+3]}" "${conf[$i+4]}"
+		let i=$i+4
 	done
 
 	LOG 0 "Main stop."
 }
 
 
-main ./xxx.conf
+main $BASE/xxx.conf
