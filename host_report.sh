@@ -13,19 +13,13 @@ function get_hostip(){
 
 function mysql_exec(){
 	local sql=$1
-	local user="inke_cmdb"
-	local password="inke_bd_cmdb"
-	local database="inke_bd_cmdb"
-	local host="127.0.0.1"
+	local user="USER"
+	local password="PASSWORD"
+	local database="DATABASE"
+	local host="HOST"
 	local mysql_bin="/usr/bin/mysql"
 	local res=()
 	local res_code=1
-
-	if [ "x$USER" == "xroot" ];then
-		host="59.110.6.122"
-	elif [ "x$USER" == "xgigi_hadoop" ];then
-		host="10.27.64.160"
-	fi
 
 	res=($($mysql_bin -u$user -p$password -D$database -h$host -e "$sql"))
 	res_code=$?
