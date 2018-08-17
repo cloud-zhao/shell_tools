@@ -132,7 +132,7 @@ function ali_api(){
 	local interface_para=($(echo $@))
 
 	local para_array=('Version' '2014-05-26'
-       		 	'Format' $ft 
+       		 	'Format' $FT 
 			'SignatureNonce' $(cat /proc/sys/kernel/random/uuid) 
 			'Timestamp' `date -d -8hour +%Y-%m-%dT%H:%M:%SZ`
 		       	'SignatureMethod' 'HMAC-SHA1' 
