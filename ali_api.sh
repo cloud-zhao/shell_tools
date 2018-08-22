@@ -102,6 +102,9 @@ function signstr(){
 }
 
 function _check_variable(){
+	URL=${URL:-"ecs.aliyuncs.com"}
+	FT=${FT:-"JSON"}
+	OUTFILE=${OUTFILE:-"./json.txt"}
 	if [ -z "$URL" ] || [ -z "$ID" ] || [ -z "$KEY" ] || [ -z "$OUTFILE" ] || [ -z "$FT" ]
 	then
 		echo '
