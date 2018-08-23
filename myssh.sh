@@ -2,12 +2,13 @@
 base=$(cd $(dirname $0);pwd)
 
 
-dir=$HOME/cloudzhao/hosts
+dir=$HOME/myfile/work/hosts
 
 function __continue__(){
 	local i=$1
 	local j=$(echo $i | grep -E '^#' | wc -l)
-	local k=$(echo $i | grep ':' | wc -l)
+	#local k=$(echo $i | grep ':' | wc -l)
+	local k=0
 	if [ "x$i" == "x" ] || [ $j -ne 0 ] || [ $k -ne 0 ];then
 		echo 1
 	else
@@ -105,24 +106,24 @@ function _check_ip(){
 }
 function _get_all_hosts(){
 	local role=$1
-	local f="$base/.all_hosts.txt"
+	local f="$dir/.all_hosts.txt"
 	test "x$role" != "x" && test -f "$dir/$role" && {
 		echo "$dir/$role";
 		return;
 	}
 	local i j k
-	>$f
+	echo -n >$f
 	for i in $(ls $dir | grep -vE '.sh$')
 	do
 		test ! -f "$dir/$i" && continue
 		while read k
 		do
 			test $(__continue__ $k) -ne 0 && continue
-			j=$(echo $k | awk '{for(i=4;i<=NF;i++){if(j){j=j"_"$i}else{j=$i}};print j}')
-			if [ "x$role" != "x" ];then
-				test $(echo $j | grep -i "$role" | wc -l) -ne 0 && {
-					echo $k >>$f;
-				}
+			if test "x$role" == "x";then
+				echo $k >> $f;
+			else
+				j=$(echo $k | awk '{for(i=4;i<=NF;i++){if(j){j=j"_"$i}else{j=$i}};print j}')
+				test $(echo $j | grep -i "$role" | wc -l) -ne 0 && echo $k >>$f
 			fi
 		done < $dir/$i
 	done
@@ -137,36 +138,47 @@ function __is__(){
 	fi
 }
 
+function _ssh(){
+	local ip=$1
+	local port=22
+	port=$(echo $ip | awk -F ':' '{print $2}')
+	ip=$(echo $ip | awk -F ':' '{print $1}')
+	ssh -p ${port:-22} -o ConnectTimeout=10 $ip
+}
+
 function myssh(){
 	local ip=$1
 	local iss=()
+	local port=22
 
 	if [ "x$ip" == "x" ];then
 		iss=($(_get_host $(_get_all_hosts)))
 		test "x${iss[0]}" == "xq" && exit
 		test "x${iss[0]}" == "x" && exit
-		ssh ${iss[0]}
+		_ssh ${iss[0]}
 	else
 		case $(__is__ $ip) in
 			1)
 				iss=($(_get_host $(_get_all_hosts $ip)))
 				test "x${iss[0]}" == "xq" && exit
 				test "x${iss[0]}" == "x" && exit
-				ssh -o ConnectTimeout=10 ${iss[0]};;
+				_ssh ${iss[0]};;
 			2)
 				local l=$(_write_host $ip)
-				test "x$l" != "x" && ssh -o ConnectTimeout=10 $l;;
+				test "x$l" != "x" && _ssh $l;;
 			*)
 				echo -e "Usage: myssh [role|ip|user@ip]"
 		esac
 	fi
 }
 function _exec(){
-	local res ip
+	local res ip port
 	for ip in $@
 	do
 		test "x$ip" == "x" && continue
-		res=$(ssh -o ConnectTimeout=10 -n $ip "$cmd")
+		port=$(echo $ip | awk -F ':' '{print $2}')
+		ip=$(echo $ip | awk -F ':' '{print $1}')
+		res=$(ssh -p ${port:-22} -o ConnectTimeout=10 -n $ip "$cmd")
 		if [ "x$res" == "x" ];then
 			echo -e "$ip\t\tok"
 		else
@@ -190,10 +202,7 @@ function mycmd(){
 		case $(__is__ $ip) in
 			2)
 				local l=$(_write_host $ip)
-				test "x$l" != "x" && {
-					res=$(ssh -n $l "$cmd");
-					echo -e "$i\t\t$res";
-				};;
+				test "x$l" != "x" && _exec $l;;
 			1)
 				iss=($(_get_host $(_get_all_hosts $ip) 2))
 				test "x${iss[0]}" == "xq" && exit
@@ -204,10 +213,12 @@ function mycmd(){
 }
 
 function __scp__(){
-	local ip u
+	local ip u port
 	for ip in $@
 	do
 		test "x$ip" == "x" && continue
+		port=$(echo $ip | awk -F ':' '{print $2}')
+		ip=$(echo $ip | awk -F ':' '{print $1}')
 		u=$(echo $ip | awk -F'@' '{print $1}')
 		if [ "x$target" == "x" ];then
 			if [ "$u" == "root" ];then
@@ -215,9 +226,9 @@ function __scp__(){
 			else
 				u="/home/$u/"
 			fi
-			scp -o ConnectTimeout=10 -r $file $ip:$u
+			scp -P ${port:-22} -o ConnectTimeout=10 -r $file $ip:$u
 		else
-			scp -o ConnectTimeout=10 -r $file $ip:$target
+			scp -P ${port:-22} -o ConnectTimeout=10 -r $file $ip:$target
 		fi
 	done
 }
